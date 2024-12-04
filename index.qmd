@@ -1,0 +1,26 @@
+---
+about: 
+  template: jolla
+  id: about-block 
+  image: "img/ID_photo.jpg"
+  links: 
+    - icon: envelope 
+      text: Email 
+      href: "mailto:mail.imh38@case.edu"
+    - icon: linkedin 
+      text: LinkedIn 
+      href: https://www.linkedin.com/in/inga-hwang-83338116b/ 
+---
+
+:::{about-block}
+::: 
+
+# Welcome to my website! 
+
+My name is Inga Hwang, and I am a student in the MD/PhD program at Case Western Reserve University. I am pursuing my PhD in biomedical engineering under the guidance of Dr. Efstathios Karathanasis and Dr. Agata Exner. My current research is focused on using therapeutic ultrasound and nanobubble contrast agents as cancer immunotherapies. I received my BS in bioengineering from the University of California, Los Angeles in 2020. 
+
+```{=html}
+<div  style="margin: 30px; text-align: center;">
+<a class="btn btn-primary" href="https://www.marvinschmitt.com/blog/website-tutorial-quarto/" role="button" target="_blank" style="padding: 15px 30px;">View the tutorial for this template (+ download link)</a>
+</div>
+```

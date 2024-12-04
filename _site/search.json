@@ -1,0 +1,23 @@
+[
+  {
+    "objectID": "index.html",
+    "href": "index.html",
+    "title": "Welcome to my website!",
+    "section": "",
+    "text": "Welcome to my website!\nMy name is Inga Hwang, and I am a student in the MD/PhD program at Case Western Reserve University. I am pursuing my PhD in biomedical engineering under the guidance of Dr. Efstathios Karathanasis and Dr. Agata Exner. My current research is focused on using therapeutic ultrasound and nanobubble contrast agents as cancer immunotherapies. I received my BS in bioengineering from the University of California, Los Angeles in 2020.\n\nView the tutorial for this template (+ download link)"
+  },
+  {
+    "objectID": "about.html",
+    "href": "about.html",
+    "title": "About",
+    "section": "",
+    "text": "About this site\n\n1 + 1\n\n[1] 2"
+  },
+  {
+    "objectID": "cv.html",
+    "href": "cv.html",
+    "title": "Curriculum vitae",
+    "section": "",
+    "text": "Download current CV\n  \n\n\n  \n\n\nView the tutorial for this template (+ download link)"
+  }
+]

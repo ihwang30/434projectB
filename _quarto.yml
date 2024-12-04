@@ -1,0 +1,31 @@
+project:
+  type: website
+  output-dir: docs
+
+website:
+  title: "PQHS 434 Project B"
+  navbar:
+    left:
+      - href: index.qmd
+        text: Home
+      - href: cv.qmd 
+        text: "CV"
+      - href: Dashboard.qmd
+        text: "Project B Dashboard"
+      - href: Blog.qmd
+        text: "Project B Blog"
+
+format:
+   html:
+    fontsize: 1.1em
+    theme: 
+      - pulse
+      - html/styles.scss
+    toc: false
+    code-link: true
+    anchor-sections: true
+    fig-cap-location: margin
+    reference-location: margin
+    footnotes-hover: true
+editor: visual
+
