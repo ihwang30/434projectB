@@ -1,3 +1,711 @@
 ---
-title: "Dashboard"
+title: "Relationship between fasting glucose, LDL, and insulin status in diabetic patients"
+format: 
+  dashboard:
+    nav-buttons: [github]
+    github: 
+theme: [sandstone, theme/custom.scss]
+fig-width: 10
+fig-asp: 0.3
+editor_options: 
+  chunk_output_type: console
 ---
+
+```{r}
+#| label: load-packages
+#| message: false
+
+#| warning: false 
+#| message: false 
+
+library(haven) #used to read .xpt files 
+library(patchwork)
+library(magrittr)
+library(car)
+library(naniar)
+library(janitor)
+library(broom)
+library(glue)
+library(easystats)
+library(tidyverse)
+library(scales)
+library(DT)
+library(gt)
+theme_set(theme_minimal(base_size = 24, base_family = "sans"))
+```
+
+```{r}
+#| label: load-data
+#| message: false
+
+#NHANES library no longer available, so data was accessed by downloading raw data from the NHANES website (at cdc.gov) and reading into R 
+demo_raw <- read_xpt("data/P_DEMO.xpt")
+diabetes_raw <- read_xpt("data/P_DIQ.xpt") 
+glucose_raw <- read_xpt("data/P_GLU.xpt") 
+LDL_raw <- read_xpt("data/P_TRIGLY.xpt")
+```
+
+```{r}
+#| label: prep-data
+diabetes <- diabetes_raw |> select(SEQN,DIQ050) 
+glucose <- glucose_raw |> select(SEQN,LBXGLU) 
+demo <- demo_raw |> select(SEQN,RIDSTATR,RIDAGEYR)
+LDL_tri <- LDL_raw |> select(SEQN,LBXTR,LBDLDL)
+
+compiled_data <- left_join(demo,diabetes,by="SEQN") 
+compiled_data <- left_join(compiled_data,glucose,by="SEQN")
+compiled_data <- left_join(compiled_data,LDL_tri,by="SEQN")
+
+clean_data <- compiled_data |> rename(ID=SEQN,status=RIDSTATR,
+                                         age=RIDAGEYR,
+                                         TGs=LBXTR,LDL=LBDLDL,fasting_glucose=LBXGLU,
+                                      on_insulin=DIQ050)
+
+clean_data <- clean_data |>
+  mutate(on_insulin=as.factor(on_insulin)) |>
+  mutate(on_insulin=fct_recode(on_insulin,"Taking insulin"="1","Not taking insulin"="2"))
+
+analysis_data <- clean_data |> filter(status==2) |> filter(age<80 & age>18) |> 
+ filter(complete.cases(TGs,LDL,fasting_glucose,on_insulin)) 
+```
+
+#  {.sidebar}
+
+This dashboard displays statistics from the National Health and Nutrition Examination Survey (NHANES)
+
+------------------------------------------------------------------------
+
+Data sets were last published on the following dates 
+
+|                          |     |
+|--------------------------|-----|
+| **Demographics**         | 05/2021  |
+| **Diabetes**             | 05/2021 |
+| **Plasma Fasting Glucose** | 05/2021  |
+| **LDL**                  | 10/2021 | 
+
+------------------------------------------------------------------------
+
+# Overview
+
+```{r}
+#| label: all-values
+#| results: hide
+
+n_diabetes <- diabetes_raw |> select(DIQ010) |> filter(DIQ010==1) |> nrow()
+avg_LDL <- round(mean(analysis_data$LDL),2)
+avg_FG <- round(mean(analysis_data$fasting_glucose),2)
+
+n_insulin <- analysis_data |> filter(on_insulin == "Taking insulin") |> nrow()
+n_noinsulin <- analysis_data |> filter(on_insulin == "Not taking insulin") |> nrow()
+n_total <- analysis_data |> nrow()
+p_insulin <- round(n_insulin/n_total * 100,2) 
+p_noinsulin <- round(n_noinsulin/n_total * 100,2)
+
+```
+
+## Row {height="25%"}
+
+```{r}
+#| content: valuebox
+#| title: "Total diabetic patients"
+
+list(
+  icon = "file-medical",
+  color = "primary",
+  value = n_diabetes
+)
+```
+
+```{r}
+#| content: valuebox
+#| title: "Average LDL (mg/dL) in diabetic patients"
+
+list(
+  icon = "clipboard2-pulse",
+  color = "primary",
+  value = avg_LDL
+)
+```
+
+```{r}
+#| content: valuebox
+#| title: "Average fasting glucose (mg/dL) in diabetic patients"
+
+list(
+  icon = "calendar-week",
+  color = "primary",
+  value = avg_FG
+)
+```
+
+## Row {height="30%"}
+
+```{r}
+#| title: Diabetic patient insulin status 
+
+insulin_data <- data.frame(
+  RowNames = c("Number of patients","Proportion (%)"), 
+  Column1 = c(n_insulin,p_insulin), 
+  Column2 = c(n_noinsulin,p_noinsulin))
+
+gt_insulin <- gt(data=insulin_data,rowname_col="RowNames") |> 
+   tab_style(    
+    style = cell_text(color = "#968ad1", weight = "bold"),
+    locations = cells_body(
+      columns = Column1,
+      rows = everything())) |>
+  tab_style(    
+    style = cell_text(color = "cyan3", weight = "bold"),
+    locations = cells_body(
+      columns = Column2,
+      rows = everything())) |> 
+  cols_label(
+    Column1 = "Taking insulin", 
+    Column2 = "Not taking insulin"
+  )
+
+gt_insulin
+
+```
+
+```{r}
+#| title: LDL and fasting glucose in diabetic patients by insulin status
+
+no_insulin <- analysis_data |> select(on_insulin,LDL,fasting_glucose) |> filter(on_insulin == "Not taking insulin")
+
+yes_insulin <- analysis_data |> select(on_insulin,LDL,fasting_glucose) |> filter(on_insulin == "Taking insulin")
+
+LDL_noInsulin <- round(mean(no_insulin$LDL),2)
+FG_noInsulin <- round(mean(no_insulin$fasting_glucose),2)
+
+LDL_Insulin <- round(mean(yes_insulin$LDL),2)
+FG_Insulin <- round(mean(yes_insulin$fasting_glucose),2)
+
+my_data <- data.frame(
+  RowNames = c("LDL (mg/dL)","Fasting Glucose (mg/dL)"), 
+  Column1 = c(LDL_Insulin,FG_Insulin), 
+  Column2 = c(LDL_noInsulin,FG_noInsulin)
+)
+
+gt_data <- gt(data=my_data,rowname_col="RowNames") |> 
+   tab_style(    
+    style = cell_text(color = "#968ad1", weight = "bold"),
+    locations = cells_body(
+      columns = Column1,
+      rows = everything())) |>
+  tab_style(    
+    style = cell_text(color = "cyan3", weight = "bold"),
+    locations = cells_body(
+      columns = Column2,
+      rows = everything())) |> 
+  cols_label(
+    Column1 = "Taking insulin", 
+    Column2 = "Not taking insulin"
+  )
+
+gt_data
+```
+
+## Row {height="45%"}
+
+```{r}
+#| title: Fasting glucose in diabetic patients by insulin status 
+
+
+a1_data <- analysis_data |> select(ID,on_insulin,fasting_glucose) |> droplevels()
+a1_data |> 
+  select(on_insulin,fasting_glucose) |> 
+  ggplot(aes(x=factor(on_insulin),y=fasting_glucose)) + 
+  geom_violin(aes(fill=factor(on_insulin))) + 
+  scale_fill_manual(values=c("#968ad1","cyan3")) + 
+  guides(fill="none") + 
+  geom_boxplot(width=0.3,outlier.size=3) + 
+  stat_summary(fun="mean",geom="point",shape=23,size=4,fill="blue") + 
+  xlab("Insulin Status") + 
+  ylab("Fasting Glucose(mg/dL)") + 
+  coord_flip() 
+
+```
+
+```{r}
+#| title: LDL in diabetic patients by insulin status 
+
+a2_data <- analysis_data |> select(ID,on_insulin,LDL) |> droplevels()
+a2_data |> 
+  select(on_insulin,LDL) |> 
+  ggplot(aes(x=factor(on_insulin),y=LDL)) + 
+  geom_violin(aes(fill=factor(on_insulin))) + 
+  scale_fill_manual(values=c("#968ad1","cyan3")) + 
+  guides(fill="none") + 
+  geom_boxplot(width=0.3,outlier.size=3) + 
+  stat_summary(fun="mean",geom="point",shape=23,size=4,fill="blue") + 
+  xlab("Insulin Status") + 
+  ylab("LDL (mg/dL)") + 
+  coord_flip()
+```
+
+# LDL 
+
+```{r}
+#| label: LDL values 
+#| results: hide
+
+source("confidence-boost.R")
+
+#High LDL is > 160 mg/dL per CCF 
+a4_2_data <- a2_data |> 
+  mutate(LDL_grp = case_when(LDL >= 160 ~ "High", LDL < 160 ~ "Not High" )) |> 
+  mutate(LDL_grp = factor(LDL_grp))
+  
+a4_2_data |> tabyl(LDL_grp,on_insulin) |>
+  adorn_totals(where=c("row","col")) 
+```
+
+### Row {height="33%"}
+
+```{r}
+#| title: LDL in diabetic patients by insulin status 
+
+a2_data <- analysis_data |> select(ID,on_insulin,LDL) |> droplevels()
+a2_data |> 
+  select(on_insulin,LDL) |> 
+  ggplot(aes(x=factor(on_insulin),y=LDL)) + 
+  geom_violin(aes(fill=factor(on_insulin))) + 
+  scale_fill_manual(values=c("#968ad1","cyan3")) + 
+  guides(fill="none") + 
+  geom_boxplot(width=0.3,outlier.size=3) + 
+  stat_summary(fun="mean",geom="point",shape=23,size=4,fill="blue") + 
+  xlab("Insulin Status") + 
+  ylab("LDL (mg/dL)") + 
+  coord_flip()
+```
+
+```{r}
+#| title: Transformed LDL in diabetic patients by insulin status 
+
+a2_data <- a2_data |> mutate(sqrt_LDL=sqrt(LDL))
+a2_data |> 
+  select(on_insulin,sqrt_LDL) |> 
+  ggplot(aes(x=factor(on_insulin),y=sqrt_LDL)) + 
+  geom_violin(aes(fill=factor(on_insulin))) + 
+  scale_fill_manual(values=c("#968ad1","cyan3")) + 
+  guides(fill="none") + 
+  geom_boxplot(width=0.3,outlier.size=3) + 
+  stat_summary(fun="mean",geom="point",shape=23,size=4,fill="blue") + 
+  xlab("Insulin Status") + 
+  ylab("sqrt(LDL),mg/dL") + 
+  coord_flip()
+```
+
+### Row {height = "33"%}
+
+```{r}
+#| label: LDL statistical tests 
+#| results: hide
+
+a2_insulin <- a2_data |> filter(on_insulin == "Taking insulin")
+mean_LDL_insulin = mean(a2_insulin$LDL)
+
+a2_noinsulin <- a2_data |> filter(on_insulin == "Not taking insulin") 
+mean_LDL_noinsulin = mean(a2_noinsulin$LDL)
+
+#Both groups are normally distributed so can use t-test 
+t.test(sqrt_LDL~on_insulin,data=a2_data,var.equal=TRUE,conf.level=0.95)
+
+pCI_high_LDL <- -0.227 
+pCI_low_LDL <- -0.905 
+pLDL <- 0.0011
+
+#Odds Ratio 
+
+twobytwo(8,140,20,331,
+        "Insulin","No Insulin",
+        "High LDL","Normal LDL",
+        conf.level = 0.95)
+
+OR_LDL = 0.9457
+OR_CI_high_LDL = 2.1981 
+OR_CI_low_LDL = 0.4069
+```
+
+
+```{r}
+#| title: Mean LDL in diabetic insulin users and non-users 
+mu_LDL_data <- data.frame(
+  RowNames = c("Mean LDL (mg/dL)"), 
+  Column1 = c(round(mean_LDL_insulin,2)), 
+  Column2 = c(round(mean_LDL_noinsulin,2)
+  ))
+  
+gt_mu_LDL <- gt(data=mu_LDL_data,rowname_col="RowNames") |> 
+   tab_style(    
+    style = cell_text(color = "#968ad1", weight = "bold"),
+    locations = cells_body(
+      columns = Column1,
+      rows = everything())) |>
+  tab_style(    
+    style = cell_text(color = "cyan3", weight = "bold"),
+    locations = cells_body(
+      columns = Column2,
+      rows = everything())) |> 
+  cols_label(
+    Column1 = "Taking insulin", 
+    Column2 = "Not taking insulin"
+  )
+
+gt_mu_LDL 
+```
+
+```{r}
+#| title: Comparison of mean sqrt(LDL) in diabetic insulin users and non-users (unpaired t-test)
+
+p_LDL <- data.frame(
+  Column1 = c(pLDL), 
+  Column2 = c(pCI_high_LDL), 
+  Column3 = c(pCI_low_LDL)
+)
+
+gt_p_LDL <- gt(data=p_LDL) |> 
+  cols_label(
+    Column1 = "p-value",
+    Column2 = "95% CI High",
+    Column3 = "95% CI Low"
+  )
+
+gt_p_LDL
+```
+
+### Row {height="33%"}
+
+```{r}
+#| title: High LDL (> 160 mg/dL) in diabetic insulin users and non-users 
+
+high_LDL_data <- data.frame(
+  RowNames = c("High LDL","Normal LDL", "Total"), 
+  Column1 = c(9,151,160), 
+  Column2 = c(32,377,409), 
+  Column3 = c(41,528,569))
+  
+gt_highLDL <- gt(data=high_LDL_data,rowname_col="RowNames") |> 
+   tab_style(    
+    style = cell_text(color = "#968ad1", weight = "bold"),
+    locations = cells_body(
+      columns = Column1,
+      rows = everything())) |>
+  tab_style(    
+    style = cell_text(color = "cyan3", weight = "bold"),
+    locations = cells_body(
+      columns = Column2,
+      rows = everything())) |> 
+  cols_label(
+    Column1 = "Taking insulin", 
+    Column2 = "Not taking insulin",
+    Column3 = "Total" 
+  )
+
+gt_highLDL
+
+```
+
+```{r}
+#| title: Odds ratio of high LDL in diabetic insulin users relative to non-users 
+OR_high_LDL <- data.frame(
+  Column1 = c(OR_LDL), 
+  Column2 = c(OR_CI_high_LDL), 
+  Column3 = c(OR_CI_low_LDL)
+)
+
+gt_OR_LDL <- gt(data=OR_high_LDL) |> 
+  cols_label(
+    Column1 = "Odds Ratio",
+    Column2 = "95% CI High",
+    Column3 = "95% CI Low"
+  )
+
+gt_OR_LDL
+```
+
+# Fasting Glucose 
+
+```{r}
+#| label: FG values 
+#| results: hide
+
+#High fasting glucose is > 126 mg/dL (ccf)
+a1_data <- a1_data |> 
+  mutate(fg_grp = case_when(fasting_glucose < 126 ~ "Normal",fasting_glucose >= 126 ~ "High")) |> 
+  mutate(fg_grp = factor(fg_grp)) 
+
+#Build two by two table 
+a1_data |> tabyl(fg_grp,on_insulin) |>
+  adorn_totals(where=c("row","col")) 
+```
+
+### Row {height="33%"}
+
+```{r}
+#| title: Fasting glucose in diabetic patients by insulin status 
+
+
+a1_data <- analysis_data |> select(ID,on_insulin,fasting_glucose) |> droplevels()
+a1_data |> 
+  select(on_insulin,fasting_glucose) |> 
+  ggplot(aes(x=factor(on_insulin),y=fasting_glucose)) + 
+  geom_violin(aes(fill=factor(on_insulin))) + 
+  scale_fill_manual(values=c("#968ad1","cyan3")) + 
+  guides(fill="none") + 
+  geom_boxplot(width=0.3,outlier.size=3) + 
+  stat_summary(fun="mean",geom="point",shape=23,size=4,fill="blue") + 
+  xlab("Insulin Status") + 
+  ylab("Fasting Glucose(mg/dL)") + 
+  coord_flip() 
+
+```
+
+```{r}
+#| title: Transformed fasting glucose in diabetic patients by insulin status 
+a1_data <- a1_data |> mutate(log_glucose=log(fasting_glucose))
+a1_data |> 
+  select(on_insulin,log_glucose) |> 
+  ggplot(aes(x=factor(on_insulin),y=log_glucose)) + 
+  geom_violin(aes(fill=factor(on_insulin))) + 
+  scale_fill_manual(values=c("#968ad1","cyan3")) + 
+  guides(fill="none") + 
+  geom_boxplot(width=0.3,outlier.size=3) + 
+  stat_summary(fun="mean",geom="point",shape=23,size=4,fill="blue") + 
+  xlab("Insulin Status") + 
+  ylab("Log(fasting glucose),mg/dL") + 
+  coord_flip()
+```
+
+### Row {height = "33%"}
+
+```{r}
+#| label: Glucose statistical tests 
+#| results: hide
+
+a1_insulin <- a1_data |> filter(on_insulin == "Taking insulin")
+mean_FG_insulin = mean(a1_insulin$fasting_glucose)
+
+a1_noinsulin <- a1_data |> filter(on_insulin == "Not taking insulin") 
+mean_FG_noinsulin = mean(a1_noinsulin$fasting_glucose)
+
+#One group is not normal so use bootstrap 
+set.seed(4342024)
+a1_data %$% bootdif(y=log_glucose,g=on_insulin,conf.level=0.95,B.reps=2000)
+
+meandiff_CI_low <- -0.1518
+meandiff_CI_high <- -0.0172
+meandiff <- -0.0854
+
+#Odds Ratio 
+twobytwo(106,42,211,120,
+        "Insulin","No Insulin",
+        "High glucose","Normal glucose",
+        conf.level = 0.95)
+
+OR_FG = 1.4353
+OR_CI_high_FG = 2.1885
+OR_CI_low_FG = 0.9414
+```
+
+```{r}
+#| title: Mean fasting glucose in diabetic insulin users and non-users 
+mu_FG_data <- data.frame(
+  RowNames = c("Mean Fasting Glucose (mg/dL)"), 
+  Column1 = c(round(mean_FG_insulin,2)), 
+  Column2 = c(round(mean_FG_noinsulin,2)
+  ))
+  
+gt_mu_FG <- gt(data=mu_FG_data,rowname_col="RowNames") |> 
+   tab_style(    
+    style = cell_text(color = "#968ad1", weight = "bold"),
+    locations = cells_body(
+      columns = Column1,
+      rows = everything())) |>
+  tab_style(    
+    style = cell_text(color = "cyan3", weight = "bold"),
+    locations = cells_body(
+      columns = Column2,
+      rows = everything())) |> 
+  cols_label(
+    Column1 = "Taking insulin", 
+    Column2 = "Not taking insulin"
+  )
+
+gt_mu_FG 
+```
+
+
+```{r}
+#| title: Comparison of mean log(fasting glucose) in diabetic insulin users and non-users (bootstrap)
+
+meandiff_FG <- data.frame(
+  Column1 = c(meandiff), 
+  Column2 = c(meandiff_CI_high), 
+  Column3 = c(meandiff_CI_low)
+)
+
+gt_meandiff_FG <- gt(data=meandiff_FG) |> 
+  cols_label(
+    Column1 = "mean difference",
+    Column2 = "95% CI High",
+    Column3 = "95% CI Low"
+  )
+
+gt_meandiff_FG
+```
+
+### Row {height="33%"}
+
+```{r}
+#| title: High LDL (> 160 mg/dL) in diabetic insulin users and non-users 
+
+high_LDL_data <- data.frame(
+  RowNames = c("High fasting glucose","Normal fasting glucose", "Total"), 
+  Column1 = c(115,45,160), 
+  Column2 = c(257,152,409), 
+  Column3 = c(372,197,569))
+  
+gt_highLDL <- gt(data=high_LDL_data,rowname_col="RowNames") |> 
+   tab_style(    
+    style = cell_text(color = "#968ad1", weight = "bold"),
+    locations = cells_body(
+      columns = Column1,
+      rows = everything())) |>
+  tab_style(    
+    style = cell_text(color = "cyan3", weight = "bold"),
+    locations = cells_body(
+      columns = Column2,
+      rows = everything())) |> 
+  cols_label(
+    Column1 = "Taking insulin", 
+    Column2 = "Not taking insulin",
+    Column3 = "Total" 
+  )
+
+gt_highLDL
+
+```
+
+```{r}
+#| title: Odds ratio of high fasting glucose in diabetic insulin users realtive to non-users 
+OR_FG <- data.frame(
+  Column1 = c(OR_FG), 
+  Column2 = c(OR_CI_high_FG), 
+  Column3 = c(OR_CI_low_FG)
+)
+
+gt_OR_FG <- gt(data=OR_FG) |> 
+  cols_label(
+    Column1 = "Odds Ratio",
+    Column2 = "95% CI High",
+    Column3 = "95% CI Low"
+  )
+
+gt_OR_FG
+```
+
+# Linear Regression 
+```{r}
+#| label: Build Model 
+#| results: hide
+
+a5_data <- analysis_data |> select(fasting_glucose,LDL)
+
+#Same transformations as before 
+a5_data <- a5_data |> mutate(log_glucose=log(fasting_glucose))
+a5_data <- a5_data |> mutate(sqrt_LDL=sqrt(LDL))
+
+m1 <- lm(sqrt(LDL)~log_glucose,data=a5_data)
+
+#Extract information about model 
+glance(m1) 
+
+tidy(m1, conf.int=TRUE,conf.level=0.95) |> 
+  select(term,estimate,std.error,conf.low,conf.high)
+
+m1_rsq = 0.0151 
+m1_intercept = m1$coefficients[1]
+m1_regcoeff = m1$coefficients[2]
+m1_intercept_CIlo = 4.03 
+m1_intercept_CIhi = 8.48 
+m1_regcoeff_CIlo = 0.221 
+m1_regcoeff_CIhi = 1.11 
+m1_intercept_stderr = 1.13 
+m1_regcoeff_stderr = 0.225 
+```
+
+### Row {height="50%"}
+```{r}
+#| title: Relationship between fasting glucose and LDL values in diabetic patients
+a5_data |> 
+  ggplot(aes(x=log_glucose,y=sqrt_LDL)) + 
+  geom_point() + 
+  geom_smooth(method="lm",formula=y~x,col="cyan3",se=FALSE) + 
+  geom_smooth(method="loess",formula=y~x,col="#968ad1",se=FALSE) + 
+  xlab("log(fasting glucose),mg/dL") + 
+  ylab("sqrt(LDL),mg/dL") + 
+  theme(axis.title.x=element_text(size=15))+ 
+  theme(axis.title.y=element_text(size=15))+
+  labs(caption = glue('Pearson correlation r = {round_half_up(cor(a5_data$sqrt_LDL,a5_data$log_glucose),3)}; R^2 = 0.0133'))
+```
+
+```{r}
+#| title: Linear model - predicting LDL using fasting glucose 
+
+m1_info <- data.frame(
+  RowNames = c("Intercept","Regression coefficient"), 
+  Column1 = c(m1_intercept,m1_regcoeff), 
+  Column2 = c(m1_intercept_stderr,m1_regcoeff_stderr), 
+  Column3 = c(m1_intercept_CIlo,m1_regcoeff_CIlo),
+  Column4 = c(m1_intercept_CIhi,m1_intercept_CIhi))
+  
+gt_m1_info <- gt(data=m1_info,rowname_col="RowNames") |> 
+  cols_label(
+    Column1 = "Estimate", 
+    Column2 = "Std. Error",
+    Column3 = "95% CI low", 
+    Column4 = "95% CI high"
+  )
+
+gt_m1_info 
+```
+
+### Row {height = "50%"}
+```{r}
+#| title: Linearity of Residuals   
+m1_aug <- augment(m1,data=a5_data)
+ggplot(m1_aug,aes(x=.fitted,y=.resid)) + 
+  geom_point() + 
+  geom_smooth(method = "lm",col="cyan3",
+              formula = y~x, se=FALSE) + 
+  geom_smooth(method = "loess",col="#968ad1",
+              formula = y~x, se=FALSE) + 
+  labs(x="Fitted LDL values",y="Residuals")
+```
+
+```{r}
+#| title: Normality of Residuals 
+ggplot(m1_aug, aes(x = .resid)) +
+  geom_histogram(aes(y = after_stat(density)), 
+                 bins = 20, fill = "cyan3", col = "azure") +
+  stat_function(fun = dnorm, 
+                args = list(mean = mean(m1_aug$.resid), 
+                            sd = sd(m1_aug$.resid)),
+                col = "blue", lwd = 1.5) + 
+  labs(x="Residuals")
+```
+
+```{r}
+#| title: Homogeneity of Variance 
+m1_aug <- augment(m1,data=a5_data)
+ggplot(m1_aug,aes(x=.fitted,y=sqrt(abs(.std.resid)))) + 
+  geom_point() + 
+  geom_smooth(method = "lm",col="cyan3",
+              formula = y~x, se=FALSE) + 
+  geom_smooth(method = "loess",col="#968ad1",
+              formula = y~x, se=FALSE) + 
+  labs(x="Fitted LDL values",y="√std. residuals")
+```
