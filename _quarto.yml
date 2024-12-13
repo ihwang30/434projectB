@@ -10,7 +10,9 @@ website:
         text: Home
       - href: cv.qmd 
         text: "CV"
-      - href: Dashboard.qmd
+      - href: pubs.qmd 
+        text: "Publications and Presentations"
+      - href: dashboard.qmd
         text: "Project B Dashboard"
       - href: Blog.qmd
         text: "Project B Blog"

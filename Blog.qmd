@@ -1,3 +1,64 @@
 ---
 title: "Blog"
 ---
+
+# Introduction
+
+As of 2021, diabetes affected 38.1 million adults in the United States (reference 1). Type II diabetes is most common, and is caused by loss of endogenous insulin production. Insulin is a hormone produced by the pancreas, which enables glucose transport from the blood into cells. Clinical diabetes symptoms include thirst, fatigue, and poor wound healing (reference 2). Diabetic patients are also at higher risk for cardiovascular disease, such as atherosclerosis and stroke, due to heightened lipid levels in their blood. These patients often have low high density lipoprotein, high low density lipoprotein (LDL) and high triglycerides (reference 2).
+
+Diabetes is diagnosed using laboratory tests, such as fasting blood glucose. Because patients fast for at least eight hours prior to measurement, fasting blood glucose provides an estimate of baseline blood glucose. Diabetic patients have low insulin, so insulin remains in their blood. Glucose management is a core component of diabetes treatment. Patients frequently measure their blood glucose, take oral medications, and receive synthetic insulin injections in severe cases. Diet and exercise modifications are also staples of treatment (reference 3). 
+
+In this analysis, I investigated how fasting glucose, LDL, and insulin use are interrrelated in diabetic patients. I used insulin use as a proxy for diabetes severity because it indicates end-stage diabetes. I included fasting glucose because it is a core diagnostic criterion for diabetes, and LDL because it is a predictor of cardiovascular comorbidities.  
+
+
+# Statistical Methods and Results 
+
+**LDL** 
+
+*Research Question & Hypothesis* 
+
+I first examined whether LDL levels in diabetic patients significantly differ between insulin users and nonusers. I hypothesized that LDL levels would be significantly higher in insulin users, as LDL levels often positively correlate with diabetes severity. 
+
+I also examined whether diabetic patients on insulin had higher odds of having high LDL. I hypothesized that insulin use increased the odds of high LDL, as severe diabetics often have higher LDL levels. 
+
+*Methods and Results* 
+
+I assessed the normality of LDL levels in insulin users and non-users via a violin and box plot. The raw data followed a roughly normal distribution with considerable right skew. I ran a box-cox transformation (not shown), which indicated a logarithmic transformation of the LDL values would yield a roughly normal distribution. I assessed the normality of the transformed data using a violin and box plot, a density plot (not shown), and a normal QQ plot (not shown). The transformed LDL values for insulin users were mildly right skewed, and those of non-insulin users were not skewed. 
+
+Because the LDL values in insulin users and non-users were normally distributed with roughly equal variance, I used an unpaired T-test to compare the means. The T-test yielded a p-value of 0.0011 with a 95% confidence interval of (-0.9050, -0.2267). The mean LDL values significantly differ between insulin users and nonusers, though the mean LDL in insulin non-users was higher than that of insulin users. This result contradicted my pre-test hypothesis, perhaps because insulin users ultimately have more controlled diabetes than non-insulin users due to treatment. 
+
+I calculated the odds ratio of high LDL in insulin users relative to non-users using the twobytwo function from the confidence-boost.R script. I created a categorical variable, where patients with LDL above 160 mg/dL were classified as "high" (ref 4). The calculation yielded an odds ratio of 0.9457 with a 95% confidence interval of (0.4069, 2.1981). Insulin non-users therefore had significantly higher odds of having high LDL.  
+
+**Fasting Glucose** 
+
+*Research Question & Hypothesis* 
+
+I investigated whether fasting glucose levels in diabetic patients significantly differ between insulin users and nonusers. I hypothesized that fasting glucose levels would be significantly higher in insulin non-users, as insulin facilitates glucose uptake by cells in the body. 
+
+I also examined whether diabetic patients on insulin had higher odds of having high fasting glucose. I hypothesized that insulin use reduced the odds of high glucose, by the same rationale stated previously. 
+
+*Methods and Results*
+
+As with LDL, I first assessed the normality of fasting glucose levels in insulin users and non-users using a violin and box plot. The data were significantly right skewed for insulin users and non-users. I ran a boxcox transformation which indicated a -0.5 power transformation would yield the most normal distribution. However, I ultimately found a logarithmic transformation yielded a more symmetric distribution. I assessed the normality of the transformed fasting glucose data using a violin and box plot, density plot (not shown), and normal QQ plot (not shown). The fasting glucose values in insulin users followed a roughly normal distribution, however the fasting glucose values in insulin non-users appeared more bimodal than normal. The variances between the two groups are also not equal. I compared their means using a bootstrap, to avoid a normality assumption. The bootstrap yielded a mean difference between the two groups of 0.0854, with a 95% confidence interval of (0.1518, 0.0171). Interestingly, the mean fasting glucose value was higher in insulin users than non-users. Insulin users likely have more severe diabetes than insulin non-users and are unable to produce insulin endogenously, which may have raised the plasma glucose values. The confidence interval did not include zero, so the two means significantly differ. 
+
+I calculated the odds ratio of high fasting glucose in insulin users relative to non-users using the twobytwo function from the confidence-boost.R script. I created a categorical variable, where patients with fasting glucose above 126 mg/dL were classified as "high" (ref 5). The calculation yielded an odds ratio of 1.4353 with a 95% confidence interval of (0.9414, 2.1885). Insulin users therefore had significantly higher odds of having high fasting glucose, as discussed previously. 
+
+
+**Linear Regression**
+
+Finally, I explored the relationship between LDL and fasting glucose levels in diabetic patients. I hypothesized that LDL would be positively correlated with fasting glucose, as higher values of both indicate more severe diabetes. 
+
+I transformed the data as discussed previously plotted sqrt(LDL) vs. log(fasting glucose). Loess and linear fitting yielded a nearly flat line, with a Pearson correlation coefficient of 0.123. Therefore, there is a very weak positive correlation between the two variables. 
+
+I then assessed whether LDL could be modeled fasting glucose. The loess fit indicated a roughly linear relationship between the two, so I performed a linear regression on the transformed data. The regression coefficient was 0.664 with a 95% confidence interval of (0.221, 1.11) and a standard error of 0.225. The linear relationship between LDL and fasting glucose is therefore significant, as the confidence interval does not include 0. The model had an R squared value of 0.0133, indicating only 1.3% of the variance in LDL is explained by fasting glucose.
+
+# Conclusion 
+Here, I examined the relationships between insulin use, LDL levels, and fasting plasma glucose levels in diabetic patients. Future analysis could incorporate additional metrics of diabetes severity, such as triglyceride levels, systolic blood pressure, and frequency of physician visits. 
+
+**References** 
+
+1. https://www.cdc.gov/diabetes/php/data-research/index.html
+2. Goldberg I. (2001) "Diabetic Dyslipidemia: Causes and Consequences" *JCEM* 86(3) 
+3. https://my.clevelandclinic.org/health/diseases/7104-diabetes
+4. https://my.clevelandclinic.org/health/articles/24391-ldl-cholesterol
+5. https://my.clevelandclinic.org/health/diagnostics/12363-blood-glucose-test 

@@ -12,12 +12,12 @@ about:
       href: https://www.linkedin.com/in/inga-hwang-83338116b/ 
 ---
 
-:::{about-block}
-::: 
+::: {about-block}
+:::
 
-# Welcome to my website! 
+# Welcome to my website!
 
-My name is Inga Hwang, and I am a student in the MD/PhD program at Case Western Reserve University. I am pursuing my PhD in biomedical engineering under the guidance of Dr. Efstathios Karathanasis and Dr. Agata Exner. My current research is focused on using therapeutic ultrasound and nanobubble contrast agents as cancer immunotherapies. I received my BS in bioengineering from the University of California, Los Angeles in 2020. 
+My name is Inga Hwang, and I am a student in the MD/PhD program at Case Western Reserve University. I am pursuing my PhD in biomedical engineering under the guidance of Dr. Efstathios Karathanasis and Dr. Agata Exner. My current research is focused on using therapeutic ultrasound and nanobubble contrast agents as cancer immunotherapies. I received my BS in bioengineering from the University of California, Los Angeles in 2020.
 
 ```{=html}
 <div  style="margin: 30px; text-align: center;">
